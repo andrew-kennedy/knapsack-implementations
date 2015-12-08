@@ -23,7 +23,8 @@ public class Knapsack {
         // try every set, up to 2^numItems becouse that is every item included
         while (longCounter >= 0) {
             // iterate over set bits, add them to the tempIndices to check
-            for (int i = counter.nextSetBit(0); i >= 0; i = counter.nextSetBit(i+1)) {
+            for (int i = counter.nextSetBit(0); i >= 0;
+                     i = counter.nextSetBit(i+1)) {
                 tempIndices.add(i);
             }
 
@@ -99,10 +100,11 @@ public class Knapsack {
         }
 
         for (int i = 1; i <= numItems; i++) {
+            // w represents the current subproblem's capacity
             for (int w = 0; w <= capacity; w++) {
 
                 // the option of the previous row (solution of subproblem with
-                // previous item, same capacity) this means this is the one we
+                // previous item, same capacity). This is the one we
                 // take if we don't take the ith item
                 int option1 = optSolution[i - 1][w];
                 // the option we take if we do take the ith item
@@ -112,15 +114,19 @@ public class Knapsack {
                 // hold one more item)
                 Item temp = items.get(i - 1);
                 if (temp.weight <= w) {
-                    // this subproblem solution is the current item's value, plus the value of
-                    // the solution to the subproblem with the previous item and the knapsack capacity
-                    // given by (the current problem's capacity - the weight of the current item)
-                    option2 = (int) temp.value + optSolution[i - 1][w - (int) temp.weight];
+                    // this subproblem solution is the current item's value,
+                    // plus the value of the solution to the subproblem with
+                    // the previous item and the knapsack capacity given by
+                    // (the current problem's capacity - the weight of the
+                    // current item)
+                    option2 = (int) temp.value
+                                  + optSolution[i - 1][w - (int) temp.weight];
                 }
 
                 // set the solution to the best value
                 optSolution[i][w] = Math.max(option1, option2);
-                // set whether we kept the item based on value, or didn't because we chose the previous
+                // set whether we kept the item based on value, or didn't
+                //because we chose the previous
                 keep[i][w] = (option2 > option1);
             }
         }
@@ -138,14 +144,23 @@ public class Knapsack {
             }
         }
     }
+
+    // Branch and bound requires two things compared to backtracking:
+    //   1. a way to provide, for every node in the state space tree
+    //      a bound on the best value of the objective function on any
+    //      solution that can be obtained by adding further components
+    //      to the partially constructed solution represented by the node
+    //   2. the value of the best solution seen so far.
     // http://www.mathcs.emory.edu/~cheung/Courses/323/Syllabus/BranchBound/Docs/branch+bound01.pdf
     private static void branchAndBound() {
+        // the priority allows for easy access to the best solution seen so
+        // far, by sorting by the bounds of the nodes.
         PriorityQueue<Node> q = new PriorityQueue<Node>();
         Node root = new Node();
-        List<Integer> best = null;
-        // sort the item indices by their value to weight ratio, descending
-        // this is purely done to avoid having to sort the weight array and
-        // the value array.
+        // this is indexed from 1, not 0.
+        List<Integer> bestStateItems = null;
+        // sort the item indices by their value to weight ratio, descending.
+        // this will allow for easy maximising of value in the pack.
         Collections.sort(items, Item.byRatio());
 
         root.computeBound();
@@ -153,26 +168,41 @@ public class Knapsack {
         try {
             while (!q.isEmpty()) {
                 Node temp = q.poll();
-
+                // check if the bound is greater than the best value seen so
+                // far, if not the search path is terminated.
                 if (temp.bound > maxValue && temp.level < numItems) {
+                    // create the node where we take the item, meaning the total
+                    // weight and value of the problem state increases by the
+                    // params of the item at this level
                     Node take = new Node(temp);
                     take.weight += items.get(temp.level).weight;
                     take.value += items.get(temp.level).value;
+                    take.contains.add(new Integer(take.level));
 
+                    // if this problem state still fits within the knapsack
+                    // capacity and is better than other states we've seen,
+                    // save this problem state's information (items taken)
                     if (take.weight < capacity && take.value > maxValue) {
                         maxValue = (int) take.value;
                         maxWeight = (int) take.weight;
-                        itemIndices.add(items.get(temp.level).label);
-                        best = new ArrayList<>(take.contains);
+                        bestStateItems = new ArrayList<>(take.contains);
                     }
+
+                    // if the taken bound is better than what we've seen so far,
+                    // add to the state space search the node where we take the
+                    // item
                     take.computeBound();
                     if (take.bound > maxValue) {
                         q.add(take);
                     }
 
+                    // for the dontTake node note that we don't do anything to
+                    // the problem state except increment the level
                     Node dontTake = new Node(temp);
+                    // if the not taken bound is better than what we've seen so
+                    // far, add to the state space search the node where we
+                    // don't take the item
                     dontTake.computeBound();
-
                     if (dontTake.bound > maxValue) {
                         q.add(dontTake);
                     }
@@ -183,8 +213,19 @@ public class Knapsack {
             System.out.println("Ran out of memory, printing best solution");
         }
 
+        // look at the items we chose in the best state and add them to the
+        // solution list.
+        for (Integer i : bestStateItems) {
+            itemIndices.add(items.get(i - 1).label);
+        }
+
+
     }
 
+    // A node in branch and bound represents a problem state, so it has a list
+    // of items (or in this case their integer indices) that we chose, and a
+    // value, weight, and bound of that state. The level is the level in the
+    // state space tree, and this corresponds to the item we are examining
     private static class Node implements Comparable<Node> {
 
         int level; // the level in the tree corresponds to the item index
@@ -199,14 +240,13 @@ public class Knapsack {
             contains = new ArrayList<Integer>();
         }
 
-        // inherit features from parent node.
+        // inherit features from parent node, incrementing level
         public Node(Node parent) {
             level = parent.level + 1;
             contains = new ArrayList<Integer>(parent.contains);
             bound = parent.bound;
             value = parent.value;
             weight = parent.weight;
-            contains.add(new Integer(level));
         }
 
         @Override
@@ -214,23 +254,41 @@ public class Knapsack {
             return (int) (o.bound - this.bound);
         }
 
-
+        // compute the bound using this: ub = v + (W − w)(vi+1/wi+1).
+        //
         public void computeBound() {
             double totalWeight = this.weight;
             double bound = this.value;
             int k = this.level;
+            // in this case this choice caused us to exceed capacity, so set the
+            // bound to the "lowest value" to eliminate this choice.
             if (this.weight > capacity) {
                 this.bound = 0.0;
                 return;
             }
-            while (k < numItems && totalWeight + items.get(k).weight <= capacity) {
+            // while we haven't run out of items and the total weight + the
+            // weight of making this choice is within capacity, increase the
+            // bound by the value of this choice and increase the weight too.
+            // bound is the total value of items already selected.
+            while (k < numItems
+                       && totalWeight + items.get(k).weight <= capacity) {
                 Item temp = items.get(k);
                 bound += temp.value;
                 totalWeight += temp.weight;
                 k++;
             }
+            // if there are still items remaining, compute the feasibility of
+            // going down this subtree further.
             if (k < numItems) {
-                bound += (capacity - totalWeight) * (items.get(k).value / items.get(k).weight);
+                // NOTE: we don't use k + 1 because k is already incremented,
+                // so refers to the item with the best unit payoff among
+                // remaining items
+
+                // increase the bound by the product of the remaining capacity
+                // and best item by ratio (items was sorted so the best ratio is
+                // next in the list, at k))
+                bound += (capacity - totalWeight) *
+                         (items.get(k).getRatio());
             }
             this.bound = bound;
         }
