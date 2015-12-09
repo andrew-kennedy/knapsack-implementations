@@ -11,7 +11,7 @@ public class Knapsack {
     private static String testDir = "../test/";
     //result vars
     private static int maxValue = 0, maxWeight = 0;
-    private static ArrayList<Integer> itemIndices = new ArrayList<Integer>();
+    private static ArrayList<Integer> itemIndices = new ArrayList<>();
 
     private static void bruteForce() {
         // bitset with a bit for every item
@@ -67,7 +67,7 @@ public class Knapsack {
     private static void greedy() {
 
         // sort the items by their value to weight ratio, descending
-        Collections.sort(items, Collections.reverseOrder(Item.byRatio()));
+        Collections.sort(items, Item.byRatio());
 
         // take items until capacity is full
         for (int i = 0; i < items.size(); i++) {
