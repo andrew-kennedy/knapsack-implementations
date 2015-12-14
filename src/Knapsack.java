@@ -106,9 +106,9 @@ public class Knapsack {
                 // the option of the previous row (solution of subproblem with
                 // previous item, same capacity). This is the one we
                 // take if we don't take the ith item
-                int option1 = optSolution[i - 1][w];
+                int dontTake = optSolution[i - 1][w];
                 // the option we take if we do take the ith item
-                int option2 = Integer.MIN_VALUE;
+                int take = Integer.MIN_VALUE;
                 // if the current item fits within the capacity of this
                 // subproblem's knapsack (every iteration lets the knapsack
                 // hold one more item)
@@ -119,15 +119,15 @@ public class Knapsack {
                     // the previous item and the knapsack capacity given by
                     // (the current problem's capacity - the weight of the
                     // current item)
-                    option2 = (int) temp.value
+                    take = (int) temp.value
                                   + optSolution[i - 1][w - (int) temp.weight];
                 }
 
                 // set the solution to the best value
-                optSolution[i][w] = Math.max(option1, option2);
+                optSolution[i][w] = Math.max(dontTake, take);
                 // set whether we kept the item based on value, or didn't
                 //because we chose the previous
-                keep[i][w] = (option2 > option1);
+                keep[i][w] = (take > dontTake);
             }
         }
 
